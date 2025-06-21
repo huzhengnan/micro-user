@@ -3,7 +3,46 @@ import { db } from "@/lib/db";
 import { verifyToken } from "@/lib/auth";
 import bcrypt from "bcryptjs";
 
-// 获取所有用户
+/**
+ * @swagger
+ * /api/users:
+ *   get:
+ *     summary: 获取所有用户
+ *     description: 获取系统中所有用户的列表，需要认证
+ *     tags:
+ *       - 用户管理
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 成功获取用户列表
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 users:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       username:
+ *                         type: string
+ *                       email:
+ *                         type: string
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                       updatedAt:
+ *                         type: string
+ *                         format: date-time
+ *       401:
+ *         description: 未授权访问
+ *       500:
+ *         description: 服务器内部错误
+ */
 export async function GET(request: NextRequest) {
   try {
     // 验证请求
@@ -34,7 +73,66 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// 创建用户
+/**
+ * @swagger
+ * /api/users:
+ *   post:
+ *     summary: 创建新用户
+ *     description: 注册一个新用户
+ *     tags:
+ *       - 用户管理
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - username
+ *               - email
+ *               - password
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 description: 用户名
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: 电子邮箱
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 description: 密码
+ *     responses:
+ *       201:
+ *         description: 用户创建成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     username:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     createdAt:
+ *                       type: string
+ *                       format: date-time
+ *                     updatedAt:
+ *                       type: string
+ *                       format: date-time
+ *       400:
+ *         description: 请求数据无效
+ *       409:
+ *         description: 用户已存在
+ *       500:
+ *         description: 服务器内部错误
+ */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();

@@ -5,9 +5,7 @@ const nextConfig: NextConfig = {
   // 禁用页面路由，只使用API路由
   output: "standalone",
   // 优化服务器端性能
-  experimental: {
-    serverComponentsExternalPackages: ["@prisma/client"]
-  },
+  serverExternalPackages: ["@prisma/client"],
   // 禁用图像优化，因为这是一个API服务
   images: {
     unoptimized: true
