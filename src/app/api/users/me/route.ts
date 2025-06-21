@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
     } catch (error) {
       // 处理用户不存在
       return NextResponse.json(
-        { error: "User not found" },
+        { error: "User not found: " + error },
         { status: 404 }
       );
     }

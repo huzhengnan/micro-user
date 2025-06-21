@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
     } catch (error) {
       // 处理登录失败
       return NextResponse.json(
-        { error: "Invalid credentials" },
+        { error: "Invalid credentials: " + error},
         { status: 401 }
       );
     }
