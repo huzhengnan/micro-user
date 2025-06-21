@@ -1,0 +1,228 @@
+# 微服务架构设计提示词
+
+## 项目概述
+这是一个基于Vercel平台的微服务架构项目，专注于后端服务的开发和部署。该项目不包含界面部分，仅提供API服务。
+
+## 架构要点
+1. 采用微服务架构，每个服务独立部署
+2. 使用Vercel Serverless Functions实现后端服务
+3. 通过API网关统一管理请求路由
+4. 每个微服务拥有自己的数据库或数据库模式
+5. 支持同步和异步通信方式
+
+## 微服务内容（英文）
+┌─────────────────────────────────────────────────────────────────┐
+│                        Vercel Platform                          │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐         │
+│  │ API Gateway │    │ CDN/Cache   │    │ Other Infra │         │
+│  └─────────────┘    └─────────────┘    └─────────────┘         │
+│         │                  │                  │                 │
+│         └──────────────────┼──────────────────┘                 │
+│                            │                                    │
+│                            ▼                                    │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │                  Microservices Layer                     │    │
+│  │                                                         │    │
+│  │  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐     │    │
+│  │  │ User    │  │ Auth    │  │ Content │  │ Other   │     │    │
+│  │  │ Service │  │ Service │  │ Service │  │ Services│     │    │
+│  │  └─────────┘  └─────────┘  └─────────┘  └─────────┘     │    │
+│  │       │            │            │            │          │    │
+│  └───────┼────────────┼────────────┼────────────┼──────────┘    │
+│          │            │            │            │               │
+│          ▼            ▼            ▼            ▼               │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │                     Data Storage Layer                   │    │
+│  │                                                         │    │
+│  │  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐     │    │
+│  │  │ User    │  │ Auth    │  │ Content │  │ Other   │     │    │
+│  │  │ Data    │  │ Data    │  │ Data    │  │ Data    │     │    │
+│  │  └─────────┘  └─────────┘  └─────────┘  └─────────┘     │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+
+## Architecture Details
+### 1. API Gateway Layer
+- Vercel Edge Functions/Serverless Functions:
+  - Acts as API gateway, handling request routing
+  - Implements authentication, authorization, rate limiting
+  - Forwards requests to appropriate microservices
+### 2. Microservices Layer
+Each microservice is an independently deployed Vercel project using Serverless Functions:
+
+- User Service (micro-user):
+  
+  - User registration, login, profile management
+  - User permissions and role management
+- Authentication Service:
+  
+  - JWT or OAuth2 authentication
+  - Single Sign-On (SSO)
+  - Session management
+- Content Service:
+  
+  - Content creation, reading, updating, deletion
+  - Content categorization and tagging
+  - Search functionality
+- Other Business Services:
+  
+  - Additional microservices based on business requirements
+### 3. Data Storage Layer
+- Vercel Integrated Databases:
+  - Can use Vercel integrated database services like Vercel Postgres
+  - Or third-party database services like MongoDB Atlas, Supabase, etc.
+  - Each microservice has its own database or database schema
+### 4. Communication Methods
+- Synchronous Communication:
+  
+  - RESTful API
+  - GraphQL API (optional)
+- Asynchronous Communication:
+  
+  - Message queue services (like AWS SQS, RabbitMQ, etc.)
+  - Webhooks
+  - Event-driven architecture
+### 5. Deployment Strategy
+- CI/CD:
+  
+  - Leverage Vercel's automatic deployment
+  - GitHub integration for automatic deployment after code push
+  - Environment isolation (development, testing, production)
+- Version Control:
+  
+  - Use Git Flow or Trunk Based Development
+  - Each microservice has its own code repository
+### 6. Monitoring and Logging
+- Vercel Analytics:
+  
+  - Performance monitoring
+  - Error tracking
+  - User behavior analysis
+- Third-party Monitoring Tools:
+  
+  - Sentry for error tracking
+  - Datadog or New Relic for full-stack monitoring
+## Technology Stack Recommendations
+- Backend: Node.js, TypeScript, Serverless Functions
+- Database: Vercel Postgres, MongoDB Atlas, Supabase
+- Authentication: NextAuth.js, Auth0
+- API: REST, GraphQL (Apollo)
+- Deployment: Vercel platform
+## Scalability Considerations
+1. Horizontal Scaling: Vercel automatically handles load balancing and scaling
+2. Feature Expansion: Easy addition of new microservices
+3. Geographic Distribution: Utilizing Vercel's global CDN network
+## Next Steps
+1. Create project structure and code repositories
+2. Design API interfaces and data models
+3. Implement core microservices
+4. Set up CI/CD pipeline
+5. Implement integration between microservices
+
+
+# 开发指南
+
+### 用户服务(micro-user)开发要点
+1. 专注于API路由的开发，不包含页面组件
+2. 使用TypeScript进行开发，确保类型安全
+3. 实现RESTful API接口，遵循REST设计原则
+4. 使用适当的数据库服务存储用户数据
+5. 实现用户认证和授权机制
+6. 确保API的安全性和性能
+
+### 数据模型设计
+1. 用户模型(User)
+   - 基本信息：ID、用户名、邮箱、密码等
+   - 扩展信息：个人资料、偏好设置等
+2. 角色模型(Role)
+   - 角色定义：管理员、普通用户等
+   - 权限设置：操作权限、访问权限等
+
+### API接口规范
+1. 遵循RESTful设计原则
+2. 使用标准HTTP方法(GET, POST, PUT, DELETE)
+3. 返回标准HTTP状态码
+4. 使用JSON格式进行数据交换
+5. 实现适当的错误处理和异常响应
+
+### 安全性考虑
+1. 实现JWT或OAuth2认证
+2. 密码加密存储
+3. 防止SQL注入和XSS攻击
+4. 实现请求速率限制
+5. 敏感数据加密传输
+
+### 部署流程
+1. 使用Vercel平台进行部署
+2. 配置环境变量和部署设置
+3. 设置CI/CD流程，实现自动化部署
+4. 配置监控和日志记录
+
+# 需要删除的无用文件清单
+根据微服务架构设计提示词中的要求，该项目是一个「专注于后端服务的开发和部署，不包含界面部分，仅提供API服务」的微服务项目。因此，以下文件和目录可以被视为无用文件：
+
+## 前端相关文件（可删除）
+1. 页面和布局文件
+   
+   - /src/app/page.tsx - 前端主页面组件
+   - /src/app/layout.tsx - 前端布局组件
+   - /src/app/globals.css - 全局样式文件
+   - /src/app/favicon.ico - 网站图标
+2. 静态资源文件
+   
+   - /public/ 目录下的所有文件：
+     - /public/file.svg
+     - /public/globe.svg
+     - /public/next.svg
+     - /public/vercel.svg
+     - /public/window.svg
+3. 前端依赖 在 package.json 中可以移除以下前端相关依赖：
+   
+   - "react": "^19.0.0"
+   - "react-dom": "^19.0.0"
+   - "@types/react": "^19"
+   - "@types/react-dom": "^19"
+   - "@tailwindcss/postcss": "^4"
+   - "tailwindcss": "^4"
+4. 配置文件
+   
+   - /postcss.config.mjs - PostCSS配置（用于前端样式处理）
+## 需要保留并修改的文件
+1. 项目配置文件
+   
+   - /next.config.ts - 需要修改配置，专注于API路由
+   - /package.json - 需要更新依赖，移除前端相关依赖，添加微服务所需依赖
+   - /tsconfig.json - 保留但可能需要调整配置
+   - /eslint.config.mjs - 保留用于代码质量检查
+2. 基础文件
+   
+   - /.gitignore
+   - /README.md - 应更新为描述微服务的内容
+## 需要新增的文件
+1. API路由文件
+   
+   - /src/app/api/ 目录 - 用于实现RESTful API接口
+   - 例如： /src/app/api/users/route.ts - 用户相关API
+2. 数据模型文件
+   
+   - /src/models/ 目录 - 存放数据模型定义
+   - 例如： /src/models/User.ts - 用户模型
+3. 服务层文件
+   
+   - /src/services/ 目录 - 存放业务逻辑
+   - 例如： /src/services/UserService.ts - 用户服务
+4. 数据库连接配置
+   
+   - /src/lib/db.ts - 数据库连接配置
+5. 认证相关文件
+   
+   - /src/lib/auth.ts - 认证和授权逻辑
+6. 环境配置文件
+   
+   - /.env.local - 本地环境变量
+   - /.env.development - 开发环境变量
+   - /.env.production - 生产环境变量
+通过删除这些无用文件并添加必要的微服务组件，可以将项目转变为符合微服务架构设计的后端API服务。
