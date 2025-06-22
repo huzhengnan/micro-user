@@ -8,16 +8,112 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  username  String   @unique
-  email     String   @unique
-  password  String
-  role      Role     @default(USER)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                String            @id @default(uuid())
+  username          String            @unique
+  email             String            @unique
+  password          String?
+  role              Role              @default(USER)
+  isEmailVerified   Boolean           @default(false)
+  emailVerifyToken  String?           @unique
+  emailVerifyExpiry DateTime?
+  avatar            String?           // 头像URL
+  sourceId          String?           // 来源网站ID
+  source            Source?           @relation(fields: [sourceId], references: [id])
+  points            Int               @default(0)  // 将balance改为points，类型改为Int
+  subscriptions     Subscription[]    // 用户订阅关系
+  oauthAccounts     OAuthAccount[]    // 第三方登录账号
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
 }
 
 enum Role {
   USER
   ADMIN
+}
+
+// 来源网站模型
+model Source {
+  id          String   @id @default(uuid())
+  name        String   @unique // 来源网站名称
+  domain      String   @unique // 域名
+  apiKey      String?  // API密钥
+  users       User[]   // 该来源的用户
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// 订阅计划模型
+model SubscriptionPlan {
+  id           String         @id @default(uuid())
+  name         String         // 订阅计划名称
+  description  String?        // 描述
+  price        Int            // 订阅价格（货币单位，如元）
+  monthlyPoints Int           // 每月赠送积分数量
+  duration     Int            // 持续时间(天)
+  features     String[]       // 功能列表
+  subscriptions Subscription[] // 订阅关系
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+}
+
+// 用户订阅关系模型
+model Subscription {
+  id                String           @id @default(uuid())
+  userId            String
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planId            String
+  plan              SubscriptionPlan @relation(fields: [planId], references: [id])
+  startDate         DateTime         @default(now())
+  endDate           DateTime
+  isActive          Boolean          @default(true)
+  autoRenew         Boolean          @default(false)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@unique([userId, planId])
+}
+
+// 第三方登录账号模型
+model OAuthAccount {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider     String   // 提供商: google, github, facebook等
+  providerId   String   // 提供商提供的ID
+  accessToken  String?  // 访问令牌
+  refreshToken String?  // 刷新令牌
+  expiresAt    DateTime? // 令牌过期时间
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([provider, providerId])
+}
+
+// 交易记录模型
+model Transaction {
+  id          String          @id @default(uuid())
+  userId      String
+  amount      Int             // 将amount类型改为Int
+  type        TransactionType
+  status      TransactionStatus @default(COMPLETED)
+  description String?
+  metadata    Json?           // 额外元数据
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+enum TransactionType {
+  TOPUP       // 充值积分（原DEPOSIT）
+  REDEEM      // 兑换/消费积分（原WITHDRAWAL）
+  SUBSCRIPTION // 订阅支付
+  REFUND      // 退款
+  EARN        // 新增：通过活动等方式赚取积分
+  EXPIRE      // 新增：积分过期
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
 }
