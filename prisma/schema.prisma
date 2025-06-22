@@ -52,6 +52,7 @@ model SubscriptionPlan {
   duration     Int            // 持续时间(天)
   features     String[]       // 功能列表
   subscriptions Subscription[] // 订阅关系
+  paymentMappings PaymentProductMapping[] // 支付产品映射
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 }
@@ -116,4 +117,30 @@ enum TransactionStatus {
   COMPLETED
   FAILED
   CANCELLED
+}
+
+// 支付产品映射模型
+model PaymentProductMapping {
+  id              String           @id @default(uuid())
+  subscriptionPlanId String         // 关联的订阅计划ID
+  subscriptionPlan SubscriptionPlan @relation(fields: [subscriptionPlanId], references: [id])
+  paymentProvider  PaymentProvider  // 支付提供商
+  productId        String           // 支付平台上的产品ID
+  priceId          String?          // 支付平台上的价格ID（某些平台如Stripe区分product和price）
+  active           Boolean          @default(true) // 是否激活
+  metadata         Json?            // 额外元数据
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@unique([subscriptionPlanId, paymentProvider])
+}
+
+// 支付提供商枚举
+enum PaymentProvider {
+  CREEM
+  STRIPE
+  PAYPAL
+  ALIPAY
+  WECHAT
+  // 可以根据需要添加更多支付提供商
 }
