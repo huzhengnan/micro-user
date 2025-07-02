@@ -8,8 +8,8 @@ export function middleware(request: NextRequest) {
   // 创建响应对象
   const response = NextResponse.next();
   
-  // 设置CORS头部
-  response.headers.set('Access-Control-Allow-Origin', '*'); // 允许所有来源，生产环境中应该限制为特定域名
+  // 设置CORS头部 - 使用请求的实际来源而不是通配符
+  response.headers.set('Access-Control-Allow-Origin', origin); // 使用实际的来源
   response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   response.headers.set('Access-Control-Allow-Credentials', 'true');

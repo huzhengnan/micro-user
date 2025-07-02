@@ -31,6 +31,22 @@ import { UserService } from "@/services/UserService";
  *                       type: string
  *                     role:
  *                       type: string
+ *                     points:
+ *                       type: number
+ *                       description: 用户积分余额
+ *                     maxPoints:
+ *                       type: number
+ *                       description: 用户基于订阅的最大积分额度
+ *                     subscriptionType:
+ *                       type: string
+ *                       description: 用户订阅类型，如FREE、BASIC、PRO等
+ *                     autoRenew:
+ *                       type: boolean
+ *                       description: 用户订阅是否自动续费
+ *                     subscriptionEndDate:
+ *                       type: string
+ *                       format: date-time
+ *                       description: 用户订阅到期时间
  *                     createdAt:
  *                       type: string
  *                       format: date-time

@@ -22,6 +22,7 @@ model User {
   points            Int               @default(0)  // 将balance改为points，类型改为Int
   subscriptions     Subscription[]    // 用户订阅关系
   oauthAccounts     OAuthAccount[]    // 第三方登录账号
+  featureUsages FeatureUsage[] // 用户功能使用记录
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 }
@@ -38,6 +39,7 @@ model Source {
   domain      String   @unique // 域名
   apiKey      String?  // API密钥
   users       User[]   // 该来源的用户
+  featureCosts FeatureCost[] // 该来源网站的功能扣费配置
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -143,4 +145,38 @@ enum PaymentProvider {
   ALIPAY
   WECHAT
   // 可以根据需要添加更多支付提供商
+}
+
+// 功能扣费模型
+model FeatureCost {
+  id          String   @id @default(uuid())
+  featureKey  String   // 功能唯一标识符
+  name        String   // 功能名称
+  description String?  // 功能描述
+  pointsCost  Int      // 消耗的积分数量
+  sourceId    String?  // 来源网站ID
+  source      Source?  @relation(fields: [sourceId], references: [id])
+  isActive    Boolean  @default(true) // 是否激活
+  metadata    Json?    // 额外元数据
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // 功能使用记录
+  usageRecords FeatureUsage[]
+
+  @@unique([featureKey, sourceId])
+}
+
+// 功能使用记录模型
+model FeatureUsage {
+  id            String   @id @default(uuid())
+  userId        String   // 用户ID
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  featureCostId String   // 功能扣费ID
+  featureCost   FeatureCost @relation(fields: [featureCostId], references: [id])
+  pointsUsed    Int      // 使用的积分数量
+  transactionId String?  // 关联的交易记录ID
+  metadata      Json?    // 额外元数据，可以存储使用详情
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }

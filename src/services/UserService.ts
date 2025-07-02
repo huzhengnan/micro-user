@@ -123,7 +123,89 @@ export class UserService {
       throw new Error("User not found");
     }
     
-    return user;
+    // 获取用户的最大积分（基于订阅）
+    const maxPoints = await this.getUserMaxPoints(userId);
+    
+    // 获取用户的订阅类型
+    const subscriptionType = await this.getUserSubscriptionType(userId);
+    
+    // 获取用户的订阅信息（自动订阅和到期时间）
+    const subscriptionInfo = await this.getUserSubscriptionInfo(userId);
+    
+    return {
+      ...user,
+      maxPoints,
+      subscriptionType,
+      autoRenew: subscriptionInfo.autoRenew,
+      subscriptionEndDate: subscriptionInfo.endDate,
+    };
+  }
+  
+  // 获取用户的订阅类型
+  static async getUserSubscriptionType(userId: string) {
+    // 获取用户的所有活跃订阅
+    const activeSubscriptions = await db.subscription.findMany({
+      where: {
+        userId,
+        isActive: true,
+        endDate: {
+          gt: new Date(),
+        },
+      },
+      include: {
+        plan: true,
+      },
+    });
+    
+    // 如果没有活跃订阅，返回默认值"FREE"
+    if (activeSubscriptions.length === 0) {
+      return "FREE";
+    }
+    
+    // 找出提供最高每月积分的订阅计划
+    let maxMonthlyPoints = 0;
+    let subscriptionType = "FREE";
+    
+    for (const subscription of activeSubscriptions) {
+      if (subscription.plan.monthlyPoints > maxMonthlyPoints) {
+        maxMonthlyPoints = subscription.plan.monthlyPoints;
+        subscriptionType = subscription.plan.name;
+      }
+    }
+    
+    return subscriptionType;
+  }
+  
+  // 获取用户的最大积分（基于订阅）
+  static async getUserMaxPoints(userId: string) {
+    // 获取用户的所有活跃订阅
+    const activeSubscriptions = await db.subscription.findMany({
+      where: {
+        userId,
+        isActive: true,
+        endDate: {
+          gt: new Date(),
+        },
+      },
+      include: {
+        plan: true,
+      },
+    });
+    
+    // 如果没有活跃订阅，返回默认值0
+    if (activeSubscriptions.length === 0) {
+      return 0;
+    }
+    
+    // 找出提供最高每月积分的订阅计划
+    let maxMonthlyPoints = 0;
+    for (const subscription of activeSubscriptions) {
+      if (subscription.plan.monthlyPoints > maxMonthlyPoints) {
+        maxMonthlyPoints = subscription.plan.monthlyPoints;
+      }
+    }
+    
+    return maxMonthlyPoints;
   }
   
   // 验证邮箱
@@ -223,5 +305,38 @@ export class UserService {
       
       return updatedUser;
     });
+  }
+  
+  // 获取用户的订阅信息（自动订阅和到期时间）
+  static async getUserSubscriptionInfo(userId: string) {
+    // 获取用户的所有活跃订阅
+    const activeSubscriptions = await db.subscription.findMany({
+      where: {
+        userId,
+        isActive: true,
+        endDate: {
+          gt: new Date(),
+        },
+      },
+      orderBy: {
+        endDate: 'desc', // 按到期时间降序排序，获取最晚到期的订阅
+      },
+    });
+    
+    // 如果没有活跃订阅，返回默认值
+    if (activeSubscriptions.length === 0) {
+      return {
+        autoRenew: false,
+        endDate: null,
+      };
+    }
+    
+    // 获取最晚到期的订阅信息
+    const latestSubscription = activeSubscriptions[0];
+    
+    return {
+      autoRenew: latestSubscription.autoRenew,
+      endDate: latestSubscription.endDate,
+    };
   }
 }
