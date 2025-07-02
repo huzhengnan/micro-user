@@ -170,11 +170,13 @@ export async function POST(request: NextRequest) {
         username,
         email,
         password: hashedPassword,
+        avatar: "https://pub-d96d5f207cf7419c984afb97765f8e1b.r2.dev/avatar_small.jpeg", // 设置默认头像
       },
       select: {
         id: true,
         username: true,
         email: true,
+        avatar: true, // 添加头像字段到返回结果
         createdAt: true,
         updatedAt: true,
       },
