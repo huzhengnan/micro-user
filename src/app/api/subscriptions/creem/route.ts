@@ -47,23 +47,45 @@ import { PaymentService } from '@/services/PaymentService';
  */
 export async function POST(request: NextRequest) {
   try {
-    const { userId, planId } = await request.json();
+    console.log('=== Creem Subscription API Debug ===');
+    console.log('Request method:', request.method);
+    console.log('Request URL:', request.url);
+    
+    const requestBody = await request.json();
+    console.log('Request body:', requestBody);
+    
+    const { userId, planId } = requestBody;
+    
+    console.log('Extracted parameters:', { userId, planId });
+    console.log('Parameter types:', { 
+      userId: typeof userId, 
+      planId: typeof planId 
+    });
     
     if (!userId || !planId) {
+      console.error('Missing required fields:', { userId: !!userId, planId: !!planId });
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
       );
     }
     
+    console.log('Calling PaymentService.createCreemSubscriptionCheckout...');
     const result = await PaymentService.createCreemSubscriptionCheckout(
       userId,
       planId
     );
     
+    console.log('PaymentService result:', result);
+    console.log('=== End Creem Subscription API Debug ===');
+    
     return NextResponse.json(result);
   } catch (error: any) {
-    console.error('Subscription API error:', error);
+    console.error('=== Subscription API Error ===');
+    console.error('Error name:', error.name);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    console.error('=== End API Error Debug ===');
     return NextResponse.json(
       { error: error.message },
       { status: 500 }
