@@ -254,6 +254,7 @@ export class PaymentService {
       console.log('Generated requestId:', requestId);
 
       // 设置成功回调URL，使用requestId作为主要标识
+      // 注意：这里使用后端API的URL，因为Creem会先回调到后端处理支付逻辑，然后重定向到前端
       const apiBaseUrl = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
       const successUrl = `${apiBaseUrl}/subscriptions/success?request_id=${requestId}`;
       console.log('Success URL:', successUrl);

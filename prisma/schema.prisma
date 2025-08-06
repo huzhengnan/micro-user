@@ -22,7 +22,8 @@ model User {
   points            Int               @default(0)  // 将balance改为points，类型改为Int
   subscriptions     Subscription[]    // 用户订阅关系
   oauthAccounts     OAuthAccount[]    // 第三方登录账号
-  featureUsages FeatureUsage[] // 用户功能使用记录
+  featureUsages     FeatureUsage[]    // 用户功能使用记录
+  userContents      UserContent[]     // 用户生成的内容
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 }
@@ -179,4 +180,45 @@ model FeatureUsage {
   metadata      Json?    // 额外元数据，可以存储使用详情
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+}
+
+// 用户生成内容模型
+model UserContent {
+  id          String      @id @default(uuid())
+  userId      String      // 用户ID
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        ContentType // 内容类型
+  title       String      // 内容标题
+  description String?     // 内容描述
+  prompt      String      // 用户输入的提示词
+  result      String      // 生成的结果（URL或文本）
+  status      ContentStatus @default(COMPLETED) // 内容状态
+  pointsUsed  Int         // 使用的积分
+  isPublic    Boolean     @default(false) // 是否公开到画廊
+  likes       Int         @default(0) // 点赞数
+  views       Int         @default(0) // 浏览数
+  metadata    Json?       // 额外元数据
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([isPublic, createdAt])
+  @@index([type, isPublic])
+}
+
+// 内容类型枚举
+enum ContentType {
+  TEXT
+  IMAGE
+  AUDIO
+  VIDEO
+  WORK_TRANSLATION
+}
+
+// 内容状态枚举
+enum ContentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
 }

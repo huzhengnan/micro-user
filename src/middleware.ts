@@ -5,13 +5,25 @@ export function middleware(request: NextRequest) {
   // 获取请求的来源
   const origin = request.headers.get('origin') || '';
   
+  // 允许的域名列表
+  const allowedOrigins = [
+    'http://localhost:5173', // 本地开发环境
+    'https://www.1000ai.ai', // 生产环境
+    'https://1000ai.ai', // 生产环境（不带www）
+  ];
+  
   // 创建响应对象
   const response = NextResponse.next();
   
-  // 设置CORS头部 - 使用请求的实际来源而不是通配符
-  response.headers.set('Access-Control-Allow-Origin', origin); // 使用实际的来源
+  // 检查来源是否在允许列表中
+  const isAllowedOrigin = allowedOrigins.includes(origin) || origin.includes('localhost');
+  
+  // 设置CORS头部
+  if (isAllowedOrigin) {
+    response.headers.set('Access-Control-Allow-Origin', origin);
+  }
   response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-api-key');
   response.headers.set('Access-Control-Allow-Credentials', 'true');
   
   // 对于预检请求(OPTIONS)，直接返回200状态码
