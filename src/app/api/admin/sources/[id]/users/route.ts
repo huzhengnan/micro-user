@@ -48,7 +48,7 @@ import { SourceService } from "@/services/SourceService";
  *       500:
  *         description: 服务器错误
  */
-export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     // 验证管理员权限
     const authResult = await verifyToken(req);

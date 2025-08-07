@@ -40,7 +40,7 @@ import jwt from 'jsonwebtoken';
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     // 获取Authorization头（可选，允许匿名点赞）
@@ -57,7 +57,7 @@ export async function POST(
       }
     }
 
-    const { id: contentId } = await params;
+    const { id: contentId } = await context.params;
 
     // 点赞内容
     const result = await ContentService.likeContent(contentId, userId);

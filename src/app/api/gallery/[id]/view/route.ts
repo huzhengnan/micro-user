@@ -31,10 +31,10 @@ import { ContentService } from '@/services/ContentService';
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id: contentId } = await params;
+    const { id: contentId } = await context.params;
 
     // 增加浏览数
     const result = await ContentService.incrementViews(contentId);
