@@ -14,6 +14,7 @@
     "jsonwebtoken": "^9.0.0",
     "next": "15.3.4",
     "next-swagger-doc": "^0.4.1",
+    "node-fetch": "^3.3.2",
     "nodemailer": "^7.0.3",
     "swagger-ui-react": "^5.25.2",
     "zod": "^3.22.0"

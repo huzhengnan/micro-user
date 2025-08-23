@@ -67,7 +67,6 @@ export async function GET(request: NextRequest) {
       select: {
         id: true,
         points: true,
-        maxPoints: true,
         createdAt: true,
       },
     });
@@ -76,9 +75,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    // 使用UserService获取用户的最大积分
+    const { UserService } = await import('@/services/UserService');
+    const maxPoints = await UserService.getUserMaxPoints(userId);
+    
     // 计算已使用的积分
     const currentPoints = user.points || 0;
-    const maxPoints = user.maxPoints || 100;
     const creditsUsed = Math.max(0, maxPoints - currentPoints);
     
     console.log('User stats calculation:', {
