@@ -32,7 +32,7 @@ import { SourceService } from "@/services/SourceService";
  *         description: 服务器错误
  */
 // GET 方法
-export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     // 验证管理员权限
     const authResult = await verifyToken(req);
@@ -41,7 +41,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     // 在使用 params.id 之前先 await params
-    const { id } = await params;
+    const { id } = await context.params;
     
     const source = await SourceService.getSource(id);
     if (!source) {
@@ -100,7 +100,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
  *         description: 服务器错误
  */
 // PUT 方法
-export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function PUT(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const authResult = await verifyToken(req);
     if (!authResult.success || authResult.role !== "ADMIN") {
@@ -108,7 +108,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     // 在使用 params.id 之前先 await params
-    const { id } = await params;
+    const { id } = await context.params;
 
     const data = await req.json();
     const { name, domain, apiKey } = data;
@@ -169,7 +169,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
  *         description: 服务器错误
  */
 // DELETE 方法
-export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     // 验证管理员权限
     const authResult = await verifyToken(req);
@@ -178,7 +178,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     }
 
     // 在使用 params.id 之前先 await params
-    const { id } = await params;
+    const { id } = await context.params;
 
     // 检查来源网站是否存在
     const existingSource = await SourceService.getSource(id);

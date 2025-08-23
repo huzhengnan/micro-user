@@ -57,7 +57,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
     }
 
     // 在使用 params.id 之前先 await params
-    const { id } = await params;
+    const { id } = await context.params;
 
     // 检查来源网站是否存在
     const existingSource = await SourceService.getSource(id);

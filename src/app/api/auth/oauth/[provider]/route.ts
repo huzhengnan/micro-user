@@ -32,10 +32,10 @@ import { OAuthService } from "@/services/OAuthService";
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ provider: string }> }
+  context: { params: Promise<{ provider: string }> }
 ) {
   try {
-    const { provider } = await params;
+    const { provider } = await context.params;
     const { searchParams } = new URL(request.url);
     const code = searchParams.get("code");
     

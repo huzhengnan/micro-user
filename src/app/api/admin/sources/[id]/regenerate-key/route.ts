@@ -34,7 +34,7 @@ import { SourceService } from "@/services/SourceService";
  *       500:
  *         description: 服务器错误
  */
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     // 验证管理员权限
     const authResult = await verifyToken(req);
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     // 在使用 params.id 之前先 await params
-    const { id } = await params;
+    const { id } = await context.params;
 
     // 检查来源网站是否存在
     const existingSource = await SourceService.getSource(id);
