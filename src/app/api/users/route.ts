@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { verifyToken } from "@/lib/auth";
 import bcrypt from "bcryptjs";
+import { UserService } from "@/services/UserService";
+import { generateToken } from "@/lib/auth";
 
 /**
  * @swagger
@@ -103,6 +105,9 @@ export async function GET(request: NextRequest) {
  *                 type: string
  *                 format: password
  *                 description: 密码
+ *               sourceid:
+ *                 type: string
+ *                 description: 来源标识符（可选）
  *     responses:
  *       201:
  *         description: 用户创建成功
@@ -136,7 +141,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { username, email, password } = body;
+    const { username, email, password, sourceid } = body;
     
     // 验证请求数据
     if (!username || !email || !password) {
@@ -146,65 +151,40 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // 检查用户是否已存在
-    const existingUser = await db.user.findFirst({
-      where: {
-        OR: [
-          { username },
-          { email },
-        ],
-      },
-    });
+    // 使用 UserService 创建用户，传入 sourceid
+    const user = await UserService.register(
+      username, 
+      email, 
+      password, 
+      sourceid, // 传入 sourceid
+      "https://pub-d96d5f207cf7419c984afb97765f8e1b.r2.dev/avatar_small.jpeg" // 默认头像
+    );
     
-    if (existingUser) {
+    // 生成 JWT token
+    const token = generateToken(user.id, user.role || 'user');
+    
+    return NextResponse.json({ 
+      user: {
+        ...user,
+        role: user.role || 'user',
+        subscriptionType: 'free',
+        credits: user.points,
+        maxCredits: 0
+      },
+      token,
+      message: "Registration successful! You've received 30 free credits to get started!"
+    }, { status: 201 });
+  } catch (error) {
+    console.error("Error creating user:", error);
+    
+    // 处理特定错误
+    if (error instanceof Error && error.message === "User already exists") {
       return NextResponse.json(
         { error: "User already exists" },
         { status: 409 }
       );
     }
     
-    // 使用事务创建新用户并赠送积分
-    const result = await db.$transaction(async (tx) => {
-      // 创建新用户
-      const hashedPassword = await bcrypt.hash(password, 10);
-      const newUser = await tx.user.create({
-        data: {
-          username,
-          email,
-          password: hashedPassword,
-          avatar: "https://pub-d96d5f207cf7419c984afb97765f8e1b.r2.dev/avatar_small.jpeg", // 设置默认头像
-          points: 30, // 注册赠送30积分
-        },
-        select: {
-          id: true,
-          username: true,
-          email: true,
-          avatar: true,
-          points: true,
-          createdAt: true,
-          updatedAt: true,
-        },
-      });
-
-      // 创建注册赠送积分的交易记录
-      await tx.transaction.create({
-        data: {
-          userId: newUser.id,
-          amount: 30,
-          type: 'EARN',
-          description: 'Registration bonus - Welcome to 1000ai.ai!',
-        },
-      });
-
-      return newUser;
-    });
-    
-    return NextResponse.json({ 
-      user: result,
-      message: "Registration successful! You've received 30 free credits to get started!"
-    }, { status: 201 });
-  } catch (error) {
-    console.error("Error creating user:", error);
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 }
