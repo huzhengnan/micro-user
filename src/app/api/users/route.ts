@@ -163,26 +163,46 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // 创建新用户
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = await db.user.create({
-      data: {
-        username,
-        email,
-        password: hashedPassword,
-        avatar: "https://pub-d96d5f207cf7419c984afb97765f8e1b.r2.dev/avatar_small.jpeg", // 设置默认头像
-      },
-      select: {
-        id: true,
-        username: true,
-        email: true,
-        avatar: true, // 添加头像字段到返回结果
-        createdAt: true,
-        updatedAt: true,
-      },
+    // 使用事务创建新用户并赠送积分
+    const result = await db.$transaction(async (tx) => {
+      // 创建新用户
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const newUser = await tx.user.create({
+        data: {
+          username,
+          email,
+          password: hashedPassword,
+          avatar: "https://pub-d96d5f207cf7419c984afb97765f8e1b.r2.dev/avatar_small.jpeg", // 设置默认头像
+          points: 30, // 注册赠送30积分
+        },
+        select: {
+          id: true,
+          username: true,
+          email: true,
+          avatar: true,
+          points: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+
+      // 创建注册赠送积分的交易记录
+      await tx.transaction.create({
+        data: {
+          userId: newUser.id,
+          amount: 30,
+          type: 'EARN',
+          description: 'Registration bonus - Welcome to 1000ai.ai!',
+        },
+      });
+
+      return newUser;
     });
     
-    return NextResponse.json({ user: newUser }, { status: 201 });
+    return NextResponse.json({ 
+      user: result,
+      message: "Registration successful! You've received 30 free credits to get started!"
+    }, { status: 201 });
   } catch (error) {
     console.error("Error creating user:", error);
     return NextResponse.json(

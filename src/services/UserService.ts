@@ -37,6 +37,7 @@ export class UserService {
         avatar: avatarUrl,
         emailVerifyToken,
         emailVerifyExpiry,
+        points: 30, // 注册赠送30积分
       },
       select: {
         id: true,
@@ -45,8 +46,19 @@ export class UserService {
         role: true,
         avatar: true,
         isEmailVerified: true,
+        points: true,
         createdAt: true,
         updatedAt: true,
+      },
+    });
+    
+    // 创建注册赠送积分的交易记录
+    await db.transaction.create({
+      data: {
+        userId: user.id,
+        amount: 30,
+        type: 'EARN',
+        description: 'Registration bonus - Welcome to 1000ai.ai!',
       },
     });
     
