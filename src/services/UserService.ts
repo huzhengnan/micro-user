@@ -22,9 +22,9 @@ export class UserService {
       throw new Error("User already exists");
     }
     
-    // 生成邮箱验证令牌
-    const emailVerifyToken = crypto.randomBytes(32).toString('hex');
-    const emailVerifyExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24小时后过期
+    // 生成邮箱验证令牌 (暂时注释掉，邮件功能未配置)
+    // const emailVerifyToken = crypto.randomBytes(32).toString('hex');
+    // const emailVerifyExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24小时后过期
     
     // 创建新用户
     const hashedPassword = password ? await bcrypt.hash(password, 10) : null;
@@ -35,8 +35,9 @@ export class UserService {
         password: hashedPassword,
         sourceId,
         avatar: avatarUrl,
-        emailVerifyToken,
-        emailVerifyExpiry,
+        // emailVerifyToken, // 暂时注释掉
+        // emailVerifyExpiry, // 暂时注释掉
+        isEmailVerified: true, // 暂时设为true，跳过邮件验证
         points: 30, // 注册赠送30积分
       },
       select: {
@@ -62,8 +63,8 @@ export class UserService {
       },
     });
     
-    // 发送验证邮件
-    await sendVerificationEmail(email, emailVerifyToken);
+    // 发送验证邮件 (暂时注释掉，邮件功能未配置)
+    // await sendVerificationEmail(email, emailVerifyToken);
     
     return user;
   }
