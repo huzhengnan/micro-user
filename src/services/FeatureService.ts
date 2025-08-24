@@ -53,14 +53,43 @@ export class FeatureService {
   static async useFeature(userId: string, featureKey: string, sourceId?: string, metadata?: any) {
     // 开始事务
     return await db.$transaction(async (tx) => {
-      // 获取功能扣费配置
-      const featureCost = await tx.featureCost.findFirst({
-        where: {
-          featureKey,
-          sourceId: sourceId || null,
-          isActive: true,
-        },
-      });
+      // 获取功能扣费配置 - 先尝试匹配用户的sourceId，然后fallback到现有配置
+      let featureCost = null;
+      
+      // 1. 如果用户有sourceId，先尝试匹配
+      if (sourceId) {
+        featureCost = await tx.featureCost.findFirst({
+          where: {
+            featureKey,
+            sourceId: sourceId,
+            isActive: true,
+          },
+        });
+      }
+      
+      // 2. 如果没有找到，尝试匹配null sourceId
+      if (!featureCost) {
+        featureCost = await tx.featureCost.findFirst({
+          where: {
+            featureKey,
+            sourceId: null,
+            isActive: true,
+          },
+        });
+      }
+      
+      // 3. 如果还没有找到，尝试任何激活的配置
+      if (!featureCost) {
+        featureCost = await tx.featureCost.findFirst({
+          where: {
+            featureKey,
+            isActive: true,
+          },
+          orderBy: {
+            createdAt: 'asc', // 优先使用最早创建的配置
+          },
+        });
+      }
 
       if (!featureCost) {
         throw new Error(`功能 ${featureKey} 不存在或未激活`);
