@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { UserService } from "@/services/UserService";
+import { withCors, errorResponse, successResponse } from "@/lib/api-handler";
 
 /**
  * @swagger
@@ -58,35 +59,26 @@ import { UserService } from "@/services/UserService";
  *       500:
  *         description: 服务器内部错误
  */
-export async function POST(request: NextRequest) {
+export const POST = withCors(async (request: NextRequest) => {
   try {
     const body = await request.json();
     const { usernameOrEmail, password, sourceId } = body;
     
     // 验证请求数据
     if (!usernameOrEmail || !password) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      );
+      return errorResponse("Missing required fields", 400, request);
     }
     
     try {
       // 调用登录服务
       const result = await UserService.login(usernameOrEmail, password, sourceId);
-      return NextResponse.json(result);
+      return successResponse(result, request);
     } catch (error) {
       // 处理登录失败
-      return NextResponse.json(
-        { error: "Invalid credentials: " + error},
-        { status: 401 }
-      );
+      return errorResponse("Invalid credentials: " + error, 401, request);
     }
   } catch (error) {
     console.error("Error during login:", error);
-    return NextResponse.json(
-      { error: "Internal Server Error" },
-      { status: 500 }
-    );
+    return errorResponse("Internal Server Error", 500, request);
   }
-}
+});

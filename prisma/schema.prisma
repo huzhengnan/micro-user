@@ -224,3 +224,43 @@ enum ContentStatus {
   COMPLETED
   FAILED
 }
+
+// 异步任务模型
+model AsyncTask {
+  id          String      @id @default(uuid())
+  userId      String      // 用户ID
+  taskType    TaskType    // 任务类型
+  status      TaskStatus  @default(PENDING) // 任务状态
+  input       Json        // 输入参数
+  result      Json?       // 任务结果
+  error       String?     // 错误信息
+  attempts    Int         @default(0) // 重试次数
+  maxAttempts Int         @default(3) // 最大重试次数
+  scheduledAt DateTime    @default(now()) // 计划执行时间
+  startedAt   DateTime?   // 开始执行时间
+  completedAt DateTime?   // 完成时间
+  metadata    Json?       // 额外元数据
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([status, scheduledAt])
+  @@index([userId, taskType])
+}
+
+// 任务类型枚举
+enum TaskType {
+  WORK_TRANSLATION
+  TEXT_GENERATION
+  IMAGE_GENERATION
+  AUDIO_GENERATION
+  VIDEO_GENERATION
+}
+
+// 任务状态枚举
+enum TaskStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
