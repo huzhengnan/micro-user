@@ -10,6 +10,7 @@ export interface CreateContentRequest {
   result: string;
   pointsUsed: number;
   isPublic?: boolean;
+  sourceId?: string;
   metadata?: any;
 }
 
@@ -35,6 +36,7 @@ export class ContentService {
           pointsUsed: data.pointsUsed,
           isPublic: data.isPublic || false,
           status: ContentStatus.COMPLETED,
+          sourceId: data.sourceId || 'banana-magic-universe',
           metadata: data.metadata,
         },
         include: {
@@ -60,7 +62,8 @@ export class ContentService {
     userId: string,
     page: number = 1,
     limit: number = 20,
-    type?: ContentType
+    type?: ContentType,
+    sourceId?: string
   ) {
     try {
       const skip = (page - 1) * limit;
@@ -71,6 +74,10 @@ export class ContentService {
 
       if (type) {
         whereCondition.type = type;
+      }
+
+      if (sourceId) {
+        whereCondition.sourceId = sourceId;
       }
 
       const [contents, totalCount] = await Promise.all([

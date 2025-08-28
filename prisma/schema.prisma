@@ -195,6 +195,7 @@ model UserContent {
   status      ContentStatus @default(COMPLETED) // 内容状态
   pointsUsed  Int         // 使用的积分
   isPublic    Boolean     @default(false) // 是否公开到画廊
+  sourceId    String?     // 来源网站ID
   likes       Int         @default(0) // 点赞数
   views       Int         @default(0) // 浏览数
   metadata    Json?       // 额外元数据
@@ -204,6 +205,7 @@ model UserContent {
   @@index([userId, createdAt])
   @@index([isPublic, createdAt])
   @@index([type, isPublic])
+  @@index([sourceId, isPublic])
 }
 
 // 内容类型枚举

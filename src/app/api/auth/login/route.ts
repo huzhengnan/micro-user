@@ -26,6 +26,9 @@ import { UserService } from "@/services/UserService";
  *                 type: string
  *                 format: password
  *                 description: 密码
+ *               sourceId:
+ *                 type: string
+ *                 description: 应用来源标识（可选）
  *     responses:
  *       200:
  *         description: 登录成功
@@ -58,7 +61,7 @@ import { UserService } from "@/services/UserService";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { usernameOrEmail, password } = body;
+    const { usernameOrEmail, password, sourceId } = body;
     
     // 验证请求数据
     if (!usernameOrEmail || !password) {
@@ -70,7 +73,7 @@ export async function POST(request: NextRequest) {
     
     try {
       // 调用登录服务
-      const result = await UserService.login(usernameOrEmail, password);
+      const result = await UserService.login(usernameOrEmail, password, sourceId);
       return NextResponse.json(result);
     } catch (error) {
       // 处理登录失败

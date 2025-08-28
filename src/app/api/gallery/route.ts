@@ -103,6 +103,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '20');
     const typeParam = searchParams.get('type');
     const search = searchParams.get('search') || '';
+    const sourceId = searchParams.get('sourceId');
 
     // 转换类型参数
     let contentType: ContentType | undefined;

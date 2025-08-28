@@ -172,7 +172,7 @@ export async function POST(request: NextRequest) {
         maxCredits: 0
       },
       token,
-      message: "Registration successful! You've received 30 free credits to get started!"
+      message: "Registration successful! You've received 10 free credits to get started!"
     }, { status: 201 });
   } catch (error) {
     console.error("Error creating user:", error);

@@ -13,6 +13,7 @@ const createContentSchema = z.object({
   result: z.string().min(1),
   pointsUsed: z.number().min(0),
   isPublic: z.boolean().optional().default(false),
+  sourceId: z.string().optional(),
   metadata: z.any().optional(),
 });
 
@@ -131,6 +132,7 @@ export async function POST(request: NextRequest) {
       result: validatedData.result,
       pointsUsed: validatedData.pointsUsed,
       isPublic: validatedData.isPublic,
+      sourceId: validatedData.sourceId || 'banana-magic-universe',
       metadata: validatedData.metadata,
     };
 

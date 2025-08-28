@@ -38,7 +38,7 @@ export class UserService {
         // emailVerifyToken, // 暂时注释掉
         // emailVerifyExpiry, // 暂时注释掉
         isEmailVerified: true, // 暂时设为true，跳过邮件验证
-        points: 30, // 注册赠送30积分
+        points: 10, // 注册赠送10积分
       },
       select: {
         id: true,
@@ -57,9 +57,9 @@ export class UserService {
     await db.transaction.create({
       data: {
         userId: user.id,
-        amount: 30,
+        amount: 10,
         type: 'EARN',
-        description: 'Registration bonus - Welcome to 1000ai.ai!',
+        description: 'Registration bonus - Welcome to Banana Magic Universe!',
       },
     });
     

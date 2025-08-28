@@ -96,6 +96,7 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
     const typeParam = searchParams.get('type');
+    const sourceId = searchParams.get('sourceId');
 
     // 转换类型参数
     let contentType: ContentType | undefined;
@@ -120,7 +121,7 @@ export async function GET(request: NextRequest) {
     }
 
     // 使用ContentService获取用户内容
-    const result = await ContentService.getUserContent(userId, page, limit, contentType);
+    const result = await ContentService.getUserContent(userId, page, limit, contentType, sourceId);
 
     // 转换数据格式以匹配前端期望的格式
     const content = result.contents.map((item) => ({
