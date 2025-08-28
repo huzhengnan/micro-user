@@ -121,7 +121,7 @@ export async function GET(request: NextRequest) {
     }
 
     // 使用ContentService获取用户内容
-    const result = await ContentService.getUserContent(userId, page, limit, contentType, sourceId);
+    const result = await ContentService.getUserContent(userId, page, limit, contentType, sourceId || undefined);
 
     // 转换数据格式以匹配前端期望的格式
     const content = result.contents.map((item) => ({
