@@ -216,116 +216,144 @@ export class AsyncTaskService {
   // 处理文本生成任务
   private static async processTextGeneration(input: any) {
     // 这里可以调用Gemini API或其他文本生成服务
-    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-goog-api-key': process.env.GEMINI_API_KEY!,
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              {
-                text: input.prompt
-              }
-            ]
-          }
-        ]
-      }),
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30秒超时
 
-    if (!response.ok) {
-      throw new Error(`Gemini API error: ${response.status} ${response.statusText}`);
+    try {
+      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-goog-api-key': process.env.GEMINI_API_KEY!,
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  text: input.prompt
+                }
+              ]
+            }
+          ]
+        }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`Gemini API error: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      
+      if (!data.candidates || data.candidates.length === 0) {
+        throw new Error('No content generated');
+      }
+
+      const textPart = data.candidates[0].content.parts[0];
+      if (!textPart.text) {
+        throw new Error('No text content found in response');
+      }
+
+      return {
+        text: textPart.text,
+        prompt: input.prompt,
+      };
+    } catch (fetchError: any) {
+      clearTimeout(timeoutId);
+      if (fetchError.name === 'AbortError') {
+        throw new Error('Request timeout: Gemini API took too long to respond');
+      }
+      throw fetchError;
     }
-
-    const data = await response.json();
-    
-    if (!data.candidates || data.candidates.length === 0) {
-      throw new Error('No content generated');
-    }
-
-    const textPart = data.candidates[0].content.parts[0];
-    if (!textPart.text) {
-      throw new Error('No text content found in response');
-    }
-
-    return {
-      text: textPart.text,
-      prompt: input.prompt,
-    };
   }
 
   // 处理图像生成任务
   private static async processImageGeneration(input: any) {
     // 第一步：生成图像
-    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-goog-api-key': process.env.GEMINI_API_KEY!,
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              {
-                text: input.prompt
-              }
-            ]
-          }
-        ]
-      }),
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60秒超时
 
-    if (!response.ok) {
-      throw new Error(`Gemini Image API error: ${response.status} ${response.statusText}`);
-    }
+    try {
+      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-goog-api-key': process.env.GEMINI_API_KEY!,
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  text: input.prompt
+                }
+              ]
+            }
+          ]
+        }),
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
 
-    const data = await response.json();
-
-    if (!data.candidates || data.candidates.length === 0) {
-      throw new Error('No image generated');
-    }
-
-    const parts = data.candidates[0].content.parts;
-    const imagePart = parts.find((part: any) => part.inlineData);
-
-    if (!imagePart || !imagePart.inlineData) {
-      throw new Error('No image data found in response');
-    }
-
-    const { mimeType, data: base64Data } = imagePart.inlineData;
-    const imageDataUrl = `data:${mimeType};base64,${base64Data}`;
-
-    // 第二步：如果需要上传到Cloudflare R2，则进行上传
-    if (input.uploadToR2) {
-      try {
-        // 这里可以调用Cloudflare R2上传服务
-        // 暂时返回base64数据，前端可以自行上传
-        return {
-          imageData: imageDataUrl,
-          prompt: input.prompt,
-          uploaded: false,
-          message: 'Image generated successfully. Upload to R2 can be done on frontend.'
-        };
-      } catch (uploadError) {
-        console.error('R2 upload error:', uploadError);
-        // 即使上传失败，也返回生成的图像
-        return {
-          imageData: imageDataUrl,
-          prompt: input.prompt,
-          uploaded: false,
-          uploadError: 'Failed to upload to R2, but image was generated successfully'
-        };
+      if (!response.ok) {
+        throw new Error(`Gemini Image API error: ${response.status} ${response.statusText}`);
       }
-    }
 
-    return {
-      imageData: imageDataUrl,
-      prompt: input.prompt,
-      uploaded: false
-    };
+      const data = await response.json();
+
+      if (!data.candidates || data.candidates.length === 0) {
+        throw new Error('No image generated');
+      }
+
+      const parts = data.candidates[0].content.parts;
+      const imagePart = parts.find((part: any) => part.inlineData);
+
+      if (!imagePart || !imagePart.inlineData) {
+        throw new Error('No image data found in response');
+      }
+
+      const { mimeType, data: base64Data } = imagePart.inlineData;
+      const imageDataUrl = `data:${mimeType};base64,${base64Data}`;
+
+      // 第二步：如果需要上传到Cloudflare R2，则进行上传
+      if (input.uploadToR2) {
+        try {
+          // 这里可以调用Cloudflare R2上传服务
+          // 暂时返回base64数据，前端可以自行上传
+          return {
+            imageData: imageDataUrl,
+            prompt: input.prompt,
+            uploaded: false,
+            message: 'Image generated successfully. Upload to R2 can be done on frontend.'
+          };
+        } catch (uploadError) {
+          console.error('R2 upload error:', uploadError);
+          // 即使上传失败，也返回生成的图像
+          return {
+            imageData: imageDataUrl,
+            prompt: input.prompt,
+            uploaded: false,
+            uploadError: 'Failed to upload to R2, but image was generated successfully'
+          };
+        }
+      }
+
+      return {
+        imageData: imageDataUrl,
+        prompt: input.prompt,
+        uploaded: false
+      };
+    } catch (fetchError: any) {
+      clearTimeout(timeoutId);
+      if (fetchError.name === 'AbortError') {
+        throw new Error('Request timeout: Gemini API took too long to respond');
+      }
+      throw fetchError;
+    }
   }
 
   // 计算任务进度
