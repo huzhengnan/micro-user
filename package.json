@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
+    "dev:proxy": "./scripts/dev-with-proxy.sh",
     "build": "prisma generate && next build",
     "postinstall": "prisma generate",
     "db:migrate": "prisma migrate deploy",

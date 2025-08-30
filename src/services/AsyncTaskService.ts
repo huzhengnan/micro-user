@@ -1,5 +1,26 @@
 import { db } from "@/lib/db";
 import { TaskType, TaskStatus } from "@prisma/client";
+import { HttpsProxyAgent } from 'https-proxy-agent';
+import fetch from 'node-fetch';
+
+// Gemini API响应类型定义
+interface GeminiResponse {
+  candidates?: Array<{
+    content: {
+      parts: Array<{
+        text?: string;
+        inlineData?: {
+          mimeType: string;
+          data: string;
+        };
+      }>;
+    };
+  }>;
+  error?: {
+    code: number;
+    message: string;
+  };
+}
 
 export interface CreateTaskRequest {
   userId: string;
@@ -18,6 +39,26 @@ export interface TaskResult {
 }
 
 export class AsyncTaskService {
+  // 获取fetch配置，包含代理和超时设置
+  private static getFetchConfig(): any {
+    const config: any = {
+      timeout: 30000, // 增加到30秒超时
+    };
+    
+    // 检查代理设置
+    const proxyUrl = process.env.HTTPS_PROXY || process.env.HTTP_PROXY;
+    if (proxyUrl) {
+      try {
+        const agent = new HttpsProxyAgent(proxyUrl);
+        config.agent = agent;
+        console.log('Using proxy:', proxyUrl);
+      } catch (error) {
+        console.warn('Failed to setup proxy agent:', error);
+      }
+    }
+    
+    return config;
+  }
   // 创建异步任务
   static async createTask(data: CreateTaskRequest) {
     try {
@@ -175,8 +216,13 @@ export class AsyncTaskService {
         error = processingError.message;
         console.error(`Task ${taskId} processing error:`, processingError);
 
+        // 检查是否是可重试的错误
+        const isRetryableError = !processingError.message.includes('API error: 4') && // 不重试4xx错误
+                                 !processingError.message.includes('Invalid API key') &&
+                                 !processingError.message.includes('Quota exceeded');
+
         // 检查是否需要重试
-        if (task.attempts < task.maxAttempts) {
+        if (isRetryableError && task.attempts < task.maxAttempts) {
           // 重试：重置为PENDING状态，延迟处理
           await db.asyncTask.update({
             where: { id: taskId },
@@ -191,12 +237,18 @@ export class AsyncTaskService {
             this.processTaskAsync(taskId);
           }, 30000);
         } else {
-          // 达到最大重试次数，标记为失败
+          // 达到最大重试次数或不可重试的错误，标记为失败
+          let errorMessage = error;
+          if (processingError.message.includes('Connect Timeout Error') || 
+              processingError.message.includes('fetch failed')) {
+            errorMessage = 'Network connection failed. Please check your internet connection or proxy settings.';
+          }
+          
           await db.asyncTask.update({
             where: { id: taskId },
             data: {
               status: TaskStatus.FAILED,
-              error: error,
+              error: errorMessage,
               completedAt: new Date(),
             },
           });
@@ -215,145 +267,177 @@ export class AsyncTaskService {
 
   // 处理文本生成任务
   private static async processTextGeneration(input: any) {
-    // 这里可以调用Gemini API或其他文本生成服务
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30秒超时
+    const maxRetries = 3;
+    let lastError: Error | null = null;
 
-    try {
-      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-goog-api-key': process.env.GEMINI_API_KEY!,
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  text: input.prompt
-                }
-              ]
-            }
-          ]
-        }),
-        signal: controller.signal,
-      });
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`Text generation attempt ${attempt}/${maxRetries}`);
+        
+        const fetchConfig = this.getFetchConfig();
+        const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent', {
+          ...fetchConfig,
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-goog-api-key': process.env.GEMINI_API_KEY!,
+          },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  {
+                    text: input.prompt
+                  }
+                ]
+              }
+            ]
+          }),
+        });
 
-      clearTimeout(timeoutId);
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Gemini API error: ${response.status} ${response.statusText} - ${errorText}`);
+        }
 
-      if (!response.ok) {
-        throw new Error(`Gemini API error: ${response.status} ${response.statusText}`);
+        const data = await response.json() as GeminiResponse;
+        
+        if (data.error) {
+          throw new Error(`Gemini API error: ${data.error.message}`);
+        }
+        
+        if (!data.candidates || data.candidates.length === 0) {
+          throw new Error('No content generated');
+        }
+
+        const textPart = data.candidates[0].content.parts[0];
+        if (!textPart.text) {
+          throw new Error('No text content found in response');
+        }
+
+        return {
+          text: textPart.text,
+          prompt: input.prompt,
+        };
+      } catch (error: any) {
+        lastError = error;
+        console.error(`Text generation attempt ${attempt} failed:`, error.message);
+        
+        // 如果是最后一次尝试，直接抛出错误
+        if (attempt === maxRetries) {
+          break;
+        }
+        
+        // 等待后重试（指数退避）
+        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 10000);
+        console.log(`Waiting ${delay}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
-
-      const data = await response.json();
-      
-      if (!data.candidates || data.candidates.length === 0) {
-        throw new Error('No content generated');
-      }
-
-      const textPart = data.candidates[0].content.parts[0];
-      if (!textPart.text) {
-        throw new Error('No text content found in response');
-      }
-
-      return {
-        text: textPart.text,
-        prompt: input.prompt,
-      };
-    } catch (fetchError: any) {
-      clearTimeout(timeoutId);
-      if (fetchError.name === 'AbortError') {
-        throw new Error('Request timeout: Gemini API took too long to respond');
-      }
-      throw fetchError;
     }
+
+    throw lastError || new Error('Text generation failed after all retries');
   }
 
   // 处理图像生成任务
   private static async processImageGeneration(input: any) {
-    // 第一步：生成图像
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60秒超时
+    const maxRetries = 3;
+    let lastError: Error | null = null;
 
-    try {
-      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-goog-api-key': process.env.GEMINI_API_KEY!,
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  text: input.prompt
-                }
-              ]
-            }
-          ]
-        }),
-        signal: controller.signal,
-      });
-      
-      clearTimeout(timeoutId);
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`Image generation attempt ${attempt}/${maxRetries}`);
+        
+        const fetchConfig = this.getFetchConfig();
+        const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent', {
+          ...fetchConfig,
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-goog-api-key': process.env.GEMINI_API_KEY!,
+          },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  {
+                    text: input.prompt
+                  }
+                ]
+              }
+            ]
+          }),
+        });
 
-      if (!response.ok) {
-        throw new Error(`Gemini Image API error: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json();
-
-      if (!data.candidates || data.candidates.length === 0) {
-        throw new Error('No image generated');
-      }
-
-      const parts = data.candidates[0].content.parts;
-      const imagePart = parts.find((part: any) => part.inlineData);
-
-      if (!imagePart || !imagePart.inlineData) {
-        throw new Error('No image data found in response');
-      }
-
-      const { mimeType, data: base64Data } = imagePart.inlineData;
-      const imageDataUrl = `data:${mimeType};base64,${base64Data}`;
-
-      // 第二步：如果需要上传到Cloudflare R2，则进行上传
-      if (input.uploadToR2) {
-        try {
-          // 这里可以调用Cloudflare R2上传服务
-          // 暂时返回base64数据，前端可以自行上传
-          return {
-            imageData: imageDataUrl,
-            prompt: input.prompt,
-            uploaded: false,
-            message: 'Image generated successfully. Upload to R2 can be done on frontend.'
-          };
-        } catch (uploadError) {
-          console.error('R2 upload error:', uploadError);
-          // 即使上传失败，也返回生成的图像
-          return {
-            imageData: imageDataUrl,
-            prompt: input.prompt,
-            uploaded: false,
-            uploadError: 'Failed to upload to R2, but image was generated successfully'
-          };
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Gemini Image API error: ${response.status} ${response.statusText} - ${errorText}`);
         }
-      }
 
-      return {
-        imageData: imageDataUrl,
-        prompt: input.prompt,
-        uploaded: false
-      };
-    } catch (fetchError: any) {
-      clearTimeout(timeoutId);
-      if (fetchError.name === 'AbortError') {
-        throw new Error('Request timeout: Gemini API took too long to respond');
+        const data = await response.json() as GeminiResponse;
+
+        if (data.error) {
+          throw new Error(`Gemini API error: ${data.error.message}`);
+        }
+
+        if (!data.candidates || data.candidates.length === 0) {
+          throw new Error('No image generated');
+        }
+
+        const parts = data.candidates[0].content.parts;
+        const imagePart = parts.find((part: any) => part.inlineData);
+
+        if (!imagePart || !imagePart.inlineData) {
+          throw new Error('No image data found in response');
+        }
+
+        const { mimeType, data: base64Data } = imagePart.inlineData;
+        const imageDataUrl = `data:${mimeType};base64,${base64Data}`;
+
+        // 第二步：如果需要上传到Cloudflare R2，则进行上传
+        if (input.uploadToR2) {
+          try {
+            // 这里可以调用Cloudflare R2上传服务
+            // 暂时返回base64数据，前端可以自行上传
+            return {
+              imageData: imageDataUrl,
+              prompt: input.prompt,
+              uploaded: false,
+              message: 'Image generated successfully. Upload to R2 can be done on frontend.'
+            };
+          } catch (uploadError) {
+            console.error('R2 upload error:', uploadError);
+            // 即使上传失败，也返回生成的图像
+            return {
+              imageData: imageDataUrl,
+              prompt: input.prompt,
+              uploaded: false,
+              uploadError: 'Failed to upload to R2, but image was generated successfully'
+            };
+          }
+        }
+
+        return {
+          imageData: imageDataUrl,
+          prompt: input.prompt,
+          uploaded: false
+        };
+      } catch (error: any) {
+        lastError = error;
+        console.error(`Image generation attempt ${attempt} failed:`, error.message);
+        
+        // 如果是最后一次尝试，直接抛出错误
+        if (attempt === maxRetries) {
+          break;
+        }
+        
+        // 等待后重试（指数退避）
+        const delay = Math.min(2000 * Math.pow(2, attempt - 1), 15000);
+        console.log(`Waiting ${delay}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
-      throw fetchError;
     }
+
+    throw lastError || new Error('Image generation failed after all retries');
   }
 
   // 计算任务进度

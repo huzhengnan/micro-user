@@ -58,7 +58,7 @@ export const GET = withAuth(async (
     return successResponse(taskResult, request);
   } catch (error: any) {
     console.error('Get task status error:', error);
-    
+
     if (error.message === 'Task not found') {
       return errorResponse('Task not found', 404, request);
     }
