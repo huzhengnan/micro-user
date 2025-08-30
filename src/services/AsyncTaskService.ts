@@ -1,7 +1,19 @@
 import { db } from "@/lib/db";
 import { TaskType, TaskStatus } from "@prisma/client";
-import { HttpsProxyAgent } from 'https-proxy-agent';
 import fetch from 'node-fetch';
+
+// 条件导入代理agent
+let HttpsProxyAgent: any = null;
+if (process.env.NODE_ENV === 'development' || process.env.HTTPS_PROXY || process.env.HTTP_PROXY) {
+  try {
+    // 只在需要时导入
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const proxyModule = require('https-proxy-agent');
+    HttpsProxyAgent = proxyModule.HttpsProxyAgent;
+  } catch (error) {
+    console.warn('https-proxy-agent not available, proxy functionality disabled');
+  }
+}
 
 // Gemini API响应类型定义
 interface GeminiResponse {
@@ -45,9 +57,9 @@ export class AsyncTaskService {
       timeout: 30000, // 增加到30秒超时
     };
     
-    // 检查代理设置
+    // 检查代理设置（只在开发环境或明确设置代理时启用）
     const proxyUrl = process.env.HTTPS_PROXY || process.env.HTTP_PROXY;
-    if (proxyUrl) {
+    if (proxyUrl && HttpsProxyAgent) {
       try {
         const agent = new HttpsProxyAgent(proxyUrl);
         config.agent = agent;
@@ -55,6 +67,8 @@ export class AsyncTaskService {
       } catch (error) {
         console.warn('Failed to setup proxy agent:', error);
       }
+    } else if (proxyUrl && !HttpsProxyAgent) {
+      console.warn('Proxy URL configured but https-proxy-agent not available');
     }
     
     return config;

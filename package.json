@@ -16,6 +16,7 @@
     "@aws-sdk/client-s3": "^3.876.0",
     "@prisma/client": "^5.0.0",
     "bcryptjs": "^2.4.3",
+    "https-proxy-agent": "^7.0.6",
     "jsonwebtoken": "^9.0.0",
     "next": "15.3.4",
     "next-swagger-doc": "^0.4.1",
