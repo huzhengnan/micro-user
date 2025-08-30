@@ -76,23 +76,74 @@ export class AsyncTaskService {
   // 创建异步任务
   static async createTask(data: CreateTaskRequest) {
     try {
-      const task = await db.asyncTask.create({
-        data: {
-          userId: data.userId,
-          taskType: data.taskType,
-          input: data.input,
-          metadata: data.metadata,
-          maxAttempts: data.maxAttempts || 3,
-          status: TaskStatus.PENDING,
-        },
+      // 使用事务确保任务创建和积分扣除的原子性
+      const result = await db.$transaction(async (tx) => {
+        // 1. 检查用户积分是否足够
+        const user = await tx.user.findUnique({
+          where: { id: data.userId },
+          select: { points: true }
+        });
+
+        if (!user) {
+          throw new Error('User not found');
+        }
+
+        // 根据任务类型确定积分消耗
+        const pointsRequired = this.getPointsRequired(data.taskType);
+        
+        if (user.points < pointsRequired) {
+          throw new Error('Insufficient points');
+        }
+
+        // 2. 扣除积分
+        await tx.user.update({
+          where: { id: data.userId },
+          data: {
+            points: {
+              decrement: pointsRequired
+            }
+          }
+        });
+
+        // 3. 创建交易记录
+        await tx.transaction.create({
+          data: {
+            userId: data.userId,
+            amount: pointsRequired,
+            type: 'REDEEM',
+            status: 'COMPLETED',
+            description: `Task creation: ${data.taskType}`,
+            metadata: {
+              taskType: data.taskType,
+              input: data.input
+            }
+          }
+        });
+
+        // 4. 创建任务记录
+        const task = await tx.asyncTask.create({
+          data: {
+            userId: data.userId,
+            taskType: data.taskType,
+            input: data.input,
+            metadata: {
+              ...data.metadata,
+              pointsUsed: pointsRequired
+            },
+            maxAttempts: data.maxAttempts || 3,
+            status: TaskStatus.PENDING,
+          },
+        });
+
+        return task;
       });
 
       // 立即尝试处理任务（如果系统负载允许）
-      this.processTaskAsync(task.id);
+      this.processTaskAsync(result.id);
 
       return {
-        id: task.id,
-        status: task.status,
+        id: result.id,
+        status: result.status,
         estimatedTime: this.getEstimatedTime(data.taskType),
       };
     } catch (error) {
@@ -487,6 +538,20 @@ export class AsyncTaskService {
         return 15000; // 15秒
       default:
         return 10000; // 10秒
+    }
+  }
+
+  // 获取任务所需积分
+  private static getPointsRequired(taskType: TaskType): number {
+    switch (taskType) {
+      case TaskType.WORK_TRANSLATION:
+        return 1;
+      case TaskType.TEXT_GENERATION:
+        return 1;
+      case TaskType.IMAGE_GENERATION:
+        return 1;
+      default:
+        return 1;
     }
   }
 

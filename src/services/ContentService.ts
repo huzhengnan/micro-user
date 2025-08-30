@@ -25,6 +25,7 @@ export class ContentService {
   // 创建用户内容
   static async createContent(data: CreateContentRequest) {
     try {
+      // 直接创建内容记录，积分已在任务创建时扣除
       const content = await db.userContent.create({
         data: {
           userId: data.userId,
@@ -53,7 +54,7 @@ export class ContentService {
       return content;
     } catch (error) {
       console.error('Create content error:', error);
-      throw new Error('Failed to create content');
+      throw error;
     }
   }
 
