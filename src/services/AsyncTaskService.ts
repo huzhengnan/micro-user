@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { TaskType, TaskStatus } from "@prisma/client";
 import fetch from 'node-fetch';
+import { DingTalkWebhookService } from "./DingTalkWebhookService";
 
 // 条件导入代理agent
 let HttpsProxyAgent: any = null;
@@ -135,15 +136,38 @@ export class AsyncTaskService {
           },
         });
 
-        return task;
+        return { task, pointsRequired };
       });
 
+      // 发送生成任务通知到钉钉
+      const user = await db.user.findUnique({
+        where: { id: data.userId },
+        select: { username: true, email: true }
+      });
+
+      if (user) {
+        DingTalkWebhookService.sendEventNotification({
+          eventType: 'generation',
+          userId: data.userId,
+          username: user.username,
+          email: user.email,
+          taskType: data.taskType,
+          pointsUsed: result.pointsRequired,
+          metadata: {
+            taskId: result.task.id,
+            input: data.input
+          }
+        }).catch(error => {
+          console.error('Failed to send generation notification:', error);
+        });
+      }
+
       // 立即尝试处理任务（如果系统负载允许）
-      this.processTaskAsync(result.id);
+      this.processTaskAsync(result.task.id);
 
       return {
-        id: result.id,
-        status: result.status,
+        id: result.task.id,
+        status: result.task.status,
         estimatedTime: this.getEstimatedTime(data.taskType),
       };
     } catch (error) {

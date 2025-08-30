@@ -4,6 +4,7 @@ import { generateToken } from "@/lib/auth";
 import crypto from "crypto";
 import { Decimal } from "@prisma/client/runtime/library";
 import { sendVerificationEmail } from "@/lib/email";
+import { DingTalkWebhookService } from "./DingTalkWebhookService";
 
 export class UserService {
   // 用户注册
@@ -66,6 +67,20 @@ export class UserService {
     // 发送验证邮件 (暂时注释掉，邮件功能未配置)
     // await sendVerificationEmail(email, emailVerifyToken);
     
+    // 发送注册通知到钉钉
+    DingTalkWebhookService.sendEventNotification({
+      eventType: 'register',
+      userId: user.id,
+      username: user.username,
+      email: user.email,
+      metadata: {
+        sourceId,
+        registrationBonus: 10
+      }
+    }).catch(error => {
+      console.error('Failed to send registration notification:', error);
+    });
+    
     return user;
   }
   
@@ -94,6 +109,20 @@ export class UserService {
     
     // 生成JWT令牌
     const token = generateToken(user.id, user.role);
+    
+    // 发送登录通知到钉钉
+    DingTalkWebhookService.sendEventNotification({
+      eventType: 'login',
+      userId: user.id,
+      username: user.username,
+      email: user.email,
+      metadata: {
+        sourceId,
+        loginTime: new Date().toISOString()
+      }
+    }).catch(error => {
+      console.error('Failed to send login notification:', error);
+    });
     
     return {
       user: {

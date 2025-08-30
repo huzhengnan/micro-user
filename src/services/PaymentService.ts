@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { UserService } from "./UserService";
 import { randomUUID } from "crypto";
+import { DingTalkWebhookService } from "./DingTalkWebhookService";
 
 export class PaymentService {
   // 处理支付
@@ -30,6 +31,29 @@ export class PaymentService {
       amount,
       'TOPUP'
     );
+
+    // 发送支付成功通知到钉钉
+    const userInfo = await db.user.findUnique({
+      where: { id: userId },
+      select: { username: true, email: true }
+    });
+
+    if (userInfo) {
+      DingTalkWebhookService.sendEventNotification({
+        eventType: 'payment',
+        userId,
+        username: userInfo.username,
+        email: userInfo.email,
+        amount,
+        metadata: {
+          paymentId: payment.id,
+          description,
+          paymentMethod: 'credit_card'
+        }
+      }).catch(error => {
+        console.error('Failed to send payment notification:', error);
+      });
+    }
 
     return { payment, user };
   }
