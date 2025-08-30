@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "dev:proxy": "./scripts/dev-with-proxy.sh",
-    "build": "prisma generate && next build",
+    "build": "SKIP_ENV_VALIDATION=true prisma generate && next build",
+    "build:next": "next build",
+    "build:vercel": "./scripts/vercel-build.sh",
     "postinstall": "prisma generate",
     "db:migrate": "prisma migrate deploy",
     "db:push": "prisma db push",

@@ -9,6 +9,17 @@ const nextConfig: NextConfig = {
   // 禁用图像优化，因为这是一个API服务
   images: {
     unoptimized: true
+  },
+  // 构建时跳过类型检查和数据库连接
+  typescript: {
+    ignoreBuildErrors: false
+  },
+  eslint: {
+    ignoreDuringBuilds: false
+  },
+  // 环境变量配置
+  env: {
+    SKIP_ENV_VALIDATION: process.env.NODE_ENV === 'production' ? 'true' : undefined
   }
 };
 
