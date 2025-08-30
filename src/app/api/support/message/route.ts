@@ -49,9 +49,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // 获取用户信息
+    // 获取用户信息，包含订阅信息
     const user = await db.user.findUnique({
       where: { id: authResult.userId },
+      include: {
+        subscriptions: {
+          where: {
+            isActive: true,
+            endDate: {
+              gte: new Date()
+            }
+          },
+          include: {
+            plan: true
+          },
+          orderBy: {
+            createdAt: 'desc'
+          },
+          take: 1
+        }
+      }
     });
 
     if (!user) {
@@ -80,6 +97,11 @@ export async function POST(request: NextRequest) {
     // user 已经在上面获取了
     const userEmail = contactEmail || user.email;
 
+    // 获取用户订阅状态
+    const subscriptionStatus = user.subscriptions.length > 0
+      ? user.subscriptions[0].plan.name
+      : 'free';
+
     // 主题映射
     const subjectMap: Record<string, string> = {
       general: '💬 一般咨询',
@@ -104,7 +126,7 @@ export async function POST(request: NextRequest) {
 - 📧 邮箱：${userEmail}
 - 🆔 用户ID：${user.id}
 - 💎 当前积分：${user.points || 0}
-- 🎯 订阅状态：${user.subscriptionStatus || 'free'}
+- 🎯 订阅状态：${subscriptionStatus}
 
 **消息内容：**
 ${message}
