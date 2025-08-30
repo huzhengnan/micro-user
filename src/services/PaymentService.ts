@@ -226,7 +226,12 @@ export class PaymentService {
   }
 
   // 处理 Creem 订阅支付
-  static async createCreemSubscriptionCheckout(userId: string, planId: string) {
+  static async createCreemSubscriptionCheckout(
+    userId: string, 
+    planId: string, 
+    successUrl?: string, 
+    cancelUrl?: string
+  ) {
     try {
       console.log('=== Creem Subscription Checkout Debug ===');
       console.log('Input parameters:', { userId, planId });
@@ -277,16 +282,18 @@ export class PaymentService {
       const requestId = `sub_${Date.now()}_${randomUUID()}`;
       console.log('Generated requestId:', requestId);
 
-      // 设置成功回调URL，使用requestId作为主要标识
-      // 注意：这里使用后端API的URL，因为Creem会先回调到后端处理支付逻辑，然后重定向到前端
+      // 设置回调URL
       const apiBaseUrl = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-      const successUrl = `${apiBaseUrl}/subscriptions/success?request_id=${requestId}`;
-      console.log('Success URL:', successUrl);
+      const finalSuccessUrl = successUrl || `${apiBaseUrl}/api/subscriptions/success?request_id=${requestId}`;
+      const finalCancelUrl = cancelUrl || `${apiBaseUrl}?subscription=cancelled`;
+      console.log('Success URL:', finalSuccessUrl);
+      console.log('Cancel URL:', finalCancelUrl);
 
       // 构建请求体
       const requestBody = {
-        success_url: successUrl,
-        request_id: `sub_${Date.now()}_${userId}`,
+        success_url: finalSuccessUrl,
+        cancel_url: finalCancelUrl,
+        request_id: requestId,
         // 如果存在产品映射，使用映射的产品ID
         ...(plan.paymentMappings.length > 0 && {
           product_id: plan.paymentMappings[0].productId
@@ -294,7 +301,7 @@ export class PaymentService {
         // 如果没有产品映射，则使用直接指定金额和描述的方式
         ...(plan.paymentMappings.length === 0 && {
           amount: plan.price,
-          currency: 'USD', // 根据需要修改货币
+          currency: 'USD',
           description: `Subscription for ${plan.name}`
         }),
         customer: {
@@ -304,9 +311,10 @@ export class PaymentService {
           userId: userId || '',
           planId: planId || '',
           planName: plan.name || '',
-          planDuration: (plan.duration ?? 0).toString(), // 使用nullish coalescing确保有默认值
-          monthlyPoints: (plan.monthlyPoints ?? 0).toString(), // 使用nullish coalescing确保有默认值
-          isSubscription: 'true' // 确保是字符串
+          planDuration: (plan.duration ?? 0).toString(),
+          monthlyPoints: (plan.monthlyPoints ?? 0).toString(),
+          isSubscription: 'true',
+          requestId: requestId
         },
       };
 
@@ -355,7 +363,8 @@ export class PaymentService {
       const result = {
         checkout_url: checkoutSession.checkout_url,
         checkout_id: checkoutSession.id,
-        success_url: successUrl
+        success_url: finalSuccessUrl,
+        cancel_url: finalCancelUrl
       };
 
       console.log('Final result:', result);

@@ -22,7 +22,6 @@ import { verifyToken } from '@/lib/auth';
  *             required:
  *               - planId
  *               - successUrl
- *               - cancelUrl
  *             properties:
  *               planId:
  *                 type: string
@@ -56,7 +55,7 @@ import { verifyToken } from '@/lib/auth';
  */
 export async function POST(request: NextRequest) {
   try {
-    console.log('=== Creem Subscription API Debug ===');
+    console.log('=== Creem Checkout API ===');
     
     // 验证用户身份
     const authResult = await verifyToken(request);
@@ -69,47 +68,35 @@ export async function POST(request: NextRequest) {
     
     const { planId, successUrl, cancelUrl } = requestBody;
     
-    console.log('Extracted parameters:', { 
-      userId: authResult.userId, 
-      planId, 
-      successUrl, 
-      cancelUrl 
-    });
-    
     if (!planId || !successUrl) {
-      console.error('Missing required fields:', { 
-        planId: !!planId, 
-        successUrl: !!successUrl 
-      });
       return NextResponse.json(
         { error: 'planId and successUrl are required' },
         { status: 400 }
       );
     }
     
-    console.log('Calling PaymentService.createCreemSubscriptionCheckout...');
+    console.log('Creating Creem checkout for:', { 
+      userId: authResult.userId, 
+      planId 
+    });
+    
     const result = await PaymentService.createCreemSubscriptionCheckout(
       authResult.userId,
       planId,
       successUrl,
-      cancelUrl
+      cancelUrl || `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}?subscription=cancelled`
     );
     
-    console.log('PaymentService result:', result);
-    console.log('=== End Creem Subscription API Debug ===');
+    console.log('Checkout created successfully');
     
     return NextResponse.json({
       checkoutUrl: result.checkout_url,
       sessionId: result.checkout_id
     });
   } catch (error: any) {
-    console.error('=== Subscription API Error ===');
-    console.error('Error name:', error.name);
-    console.error('Error message:', error.message);
-    console.error('Error stack:', error.stack);
-    console.error('=== End API Error Debug ===');
+    console.error('Creem checkout error:', error);
     return NextResponse.json(
-      { error: error.message },
+      { error: error.message || 'Failed to create checkout session' },
       { status: 500 }
     );
   }

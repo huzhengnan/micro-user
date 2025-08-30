@@ -35,6 +35,19 @@ export async function verifyToken(request: NextRequest) {
   }
 }
 
+// Alias for backward compatibility
+export async function authenticateRequest(request: NextRequest) {
+  const result = await verifyToken(request);
+  if (result.success) {
+    // Get user data for compatibility
+    const user = await db.user.findUnique({
+      where: { id: result.userId },
+    });
+    return { success: true, userId: result.userId, role: result.role, user };
+  }
+  return { success: false, message: result.message, user: null };
+}
+
 export function generateToken(userId: string, role: string) {
   return jwt.sign({ userId, role }, JWT_SECRET, { expiresIn: "24h" });
 }
