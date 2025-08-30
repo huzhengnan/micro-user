@@ -282,17 +282,20 @@ export class PaymentService {
       const requestId = `sub_${Date.now()}_${randomUUID()}`;
       console.log('Generated requestId:', requestId);
 
-      // 设置回调URL
+      // 设置回调URL - Creem 不接受带查询参数的URL
       const apiBaseUrl = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-      const finalSuccessUrl = successUrl || `${apiBaseUrl}/api/subscriptions/success?request_id=${requestId}`;
-      const finalCancelUrl = cancelUrl || `${apiBaseUrl}?subscription=cancelled`;
-      console.log('Success URL:', finalSuccessUrl);
-      console.log('Cancel URL:', finalCancelUrl);
+      // 移除末尾的斜杠和可能存在的 /api 路径
+      const baseUrl = apiBaseUrl.replace(/\/$/, '').replace(/\/api$/, '');
+      
+      // 总是使用后端的成功处理器，不使用前端传递的 successUrl
+      // 这样可以确保支付成功后先经过后端处理，然后再重定向到前端
+      const finalSuccessUrl = `${baseUrl}/api/subscriptions/success`;
+      
+      console.log('Success URL (cleaned):', finalSuccessUrl);
 
       // 构建请求体
       const requestBody = {
         success_url: finalSuccessUrl,
-        cancel_url: finalCancelUrl,
         request_id: requestId,
         // 如果存在产品映射，使用映射的产品ID
         ...(plan.paymentMappings.length > 0 && {
@@ -320,11 +323,23 @@ export class PaymentService {
 
       console.log('Request body to Creem:', JSON.stringify(requestBody, null, 2));
 
-      const response = await fetch(process.env.CREEM_CHECKOUT_URL!, {
+      // 根据环境选择 Creem API 配置
+      const isTestEnv = process.env.NODE_ENV === 'development' || process.env.USE_CREEM_TEST_ENV === 'true';
+      const creemUrl = isTestEnv && process.env.CREEM_TEST_CHECKOUT_URL 
+        ? process.env.CREEM_TEST_CHECKOUT_URL 
+        : process.env.CREEM_CHECKOUT_URL!;
+      const creemApiKey = isTestEnv && process.env.CREEM_TEST_API_KEY 
+        ? process.env.CREEM_TEST_API_KEY 
+        : process.env.CREEM_API_KEY!;
+
+      console.log('Using Creem environment:', isTestEnv ? 'TEST' : 'PRODUCTION');
+      console.log('Creem URL:', creemUrl);
+
+      const response = await fetch(creemUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': process.env.CREEM_API_KEY!,  // 使用x-api-key而不是Authorization
+          'x-api-key': creemApiKey,
         },
         body: JSON.stringify(requestBody),
       });
@@ -363,8 +378,7 @@ export class PaymentService {
       const result = {
         checkout_url: checkoutSession.checkout_url,
         checkout_id: checkoutSession.id,
-        success_url: finalSuccessUrl,
-        cancel_url: finalCancelUrl
+        success_url: finalSuccessUrl
       };
 
       console.log('Final result:', result);

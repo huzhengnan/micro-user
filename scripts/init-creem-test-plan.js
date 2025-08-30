@@ -6,39 +6,50 @@ async function initCreemTestPlan() {
   try {
     console.log('🚀 初始化 Creem 测试订阅计划...');
 
-    // 创建或更新测试订阅计划
-    const testPlan = await prisma.subscriptionPlan.upsert({
+    // 先查找是否存在测试计划
+    let testPlan = await prisma.subscriptionPlan.findFirst({
       where: {
         name: 'Premium Monthly Test'
-      },
-      update: {
-        price: 9.9,
-        duration: 30, // 30天
-        monthlyPoints: 1000,
-        features: [
-          'Unlimited AI generations',
-          'Priority processing',
-          'Advanced templates',
-          'Premium support',
-          'Export in high resolution'
-        ],
-        description: 'Test premium subscription with 1000 monthly points'
-      },
-      create: {
-        name: 'Premium Monthly Test',
-        price: 9.9,
-        duration: 30, // 30天
-        monthlyPoints: 1000,
-        features: [
-          'Unlimited AI generations',
-          'Priority processing', 
-          'Advanced templates',
-          'Premium support',
-          'Export in high resolution'
-        ],
-        description: 'Test premium subscription with 1000 monthly points'
       }
     });
+
+    if (testPlan) {
+      // 更新现有计划
+      testPlan = await prisma.subscriptionPlan.update({
+        where: { id: testPlan.id },
+        data: {
+          price: 990, // 价格以分为单位
+          duration: 30, // 30天
+          monthlyPoints: 1000,
+          features: [
+            'Unlimited AI generations',
+            'Priority processing',
+            'Advanced templates',
+            'Premium support',
+            'Export in high resolution'
+          ],
+          description: 'Test premium subscription with 1000 monthly points'
+        }
+      });
+    } else {
+      // 创建新计划
+      testPlan = await prisma.subscriptionPlan.create({
+        data: {
+          name: 'Premium Monthly Test',
+          price: 990, // 价格以分为单位
+          duration: 30, // 30天
+          monthlyPoints: 1000,
+          features: [
+            'Unlimited AI generations',
+            'Priority processing',
+            'Advanced templates',
+            'Premium support',
+            'Export in high resolution'
+          ],
+          description: 'Test premium subscription with 1000 monthly points'
+        }
+      });
+    }
 
     console.log('✅ 订阅计划创建/更新成功:', {
       id: testPlan.id,
@@ -47,34 +58,42 @@ async function initCreemTestPlan() {
     });
 
     // 创建或更新 Creem 产品映射
-    const creemMapping = await prisma.paymentProductMapping.upsert({
+    const existingMapping = await prisma.paymentProductMapping.findFirst({
       where: {
-        subscriptionPlanId_paymentProvider: {
-          subscriptionPlanId: testPlan.id,
-          paymentProvider: 'CREEM'
-        }
-      },
-      update: {
-        productId: 'prod_4YahbfEWllNQxGjZtKVM23',
-        active: true,
-        metadata: {
-          testEnvironment: true,
-          price: 9.9,
-          currency: 'USD'
-        }
-      },
-      create: {
         subscriptionPlanId: testPlan.id,
-        paymentProvider: 'CREEM',
-        productId: 'prod_4YahbfEWllNQxGjZtKVM23',
-        active: true,
-        metadata: {
-          testEnvironment: true,
-          price: 9.9,
-          currency: 'USD'
-        }
+        paymentProvider: 'CREEM'
       }
     });
+
+    let creemMapping;
+    if (existingMapping) {
+      creemMapping = await prisma.paymentProductMapping.update({
+        where: { id: existingMapping.id },
+        data: {
+          productId: 'prod_4YahbfEWllNQxGjZtKVM23',
+          active: true,
+          metadata: {
+            testEnvironment: true,
+            price: 9.90,
+            currency: 'USD'
+          }
+        }
+      });
+    } else {
+      creemMapping = await prisma.paymentProductMapping.create({
+        data: {
+          subscriptionPlanId: testPlan.id,
+          paymentProvider: 'CREEM',
+          productId: 'prod_4YahbfEWllNQxGjZtKVM23',
+          active: true,
+          metadata: {
+            testEnvironment: true,
+            price: 9.90,
+            currency: 'USD'
+          }
+        }
+      });
+    }
 
     console.log('✅ Creem 产品映射创建/更新成功:', {
       id: creemMapping.id,

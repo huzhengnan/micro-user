@@ -83,8 +83,7 @@ export async function POST(request: NextRequest) {
     const result = await PaymentService.createCreemSubscriptionCheckout(
       authResult.userId,
       planId,
-      successUrl,
-      cancelUrl || `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}?subscription=cancelled`
+      successUrl
     );
     
     console.log('Checkout created successfully');

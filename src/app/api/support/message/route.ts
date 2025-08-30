@@ -60,9 +60,6 @@ export async function POST(request: NextRequest) {
               gte: new Date()
             }
           },
-          include: {
-            plan: true
-          },
           orderBy: {
             createdAt: 'desc'
           },
@@ -78,89 +75,88 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { subject, message, contactEmail } = body;
 
-    // 验证必填字段
+    // Validate required fields
     if (!subject || !message) {
       return NextResponse.json(
-        { error: '主题和消息内容为必填项' },
+        { error: 'Subject and message content are required' },
         { status: 400 }
       );
     }
 
-    // 验证消息长度
+    // Validate message length
     if (message.length > 2000) {
       return NextResponse.json(
-        { error: '消息内容过长（最多2000字符）' },
+        { error: 'Message content is too long (maximum 2000 characters)' },
         { status: 400 }
       );
     }
 
-    // user 已经在上面获取了
     const userEmail = contactEmail || user.email;
 
-    // 获取用户订阅状态
+    // Get user subscription status
     const subscriptionStatus = user.subscriptions.length > 0
-      ? user.subscriptions[0].plan.name
+      ? 'premium'
       : 'free';
 
-    // 主题映射
+    // Subject mapping
     const subjectMap: Record<string, string> = {
-      general: '💬 一般咨询',
-      support: '🛠️ 技术支持',
-      billing: '💰 账单问题',
-      feature: '✨ 功能建议',
-      bug: '🐛 错误报告',
-      partnership: '🤝 合作咨询'
+      general: '💬 General Inquiry',
+      support: '🛠️ Technical Support',
+      billing: '💰 Billing Issue',
+      feature: '✨ Feature Request',
+      bug: '🐛 Bug Report',
+      partnership: '🤝 Partnership Inquiry'
     };
 
-    const subjectText = subjectMap[subject] || '💬 用户咨询';
+    const subjectText = subjectMap[subject] || '💬 User Inquiry';
 
-    // 构建钉钉消息
+    // Build DingTalk message
     const dingTalkMessage: DingTalkMessage = {
       msgtype: 'markdown',
       markdown: {
-        title: `${subjectText} - 来自 ${user.username}`,
+        title: `${subjectText} - from ${user.username}`,
         text: `## ${subjectText}
 
-**用户信息：**
-- 👤 用户名：${user.username}
-- 📧 邮箱：${userEmail}
-- 🆔 用户ID：${user.id}
-- 💎 当前积分：${user.points || 0}
-- 🎯 订阅状态：${subscriptionStatus}
+**User Information:**
+- 👤 Username: ${user.username}
+- 📧 Email: ${userEmail}
+- 🆔 User ID: ${user.id}
+- 💎 Current Points: ${user.points || 0}
+- 🎯 Subscription Status: ${subscriptionStatus}
 
-**消息内容：**
+**Message Content:**
 ${message}
 
 ---
-⏰ **提交时间：** ${new Date().toLocaleString('zh-CN')}
-🌐 **来源：** Banana Magic Universe 🍌✨
+⏰ **Submitted At:** ${new Date().toLocaleString('en-US')}
+🌐 **Source:** Banana Magic Universe 🍌✨
 
-> 请及时回复用户咨询！`
+> Please respond to user inquiry promptly!`
       },
       at: {
         isAtAll: false
       }
     };
 
-    // 发送钉钉消息
+    // Send DingTalk message
     const success = await DingTalkWebhookService.sendMessage(dingTalkMessage);
 
     if (!success) {
       return NextResponse.json(
-        { error: '发送消息到客服团队失败，请稍后重试' },
+        { error: 'Failed to send message to support team, please try again later' },
         { status: 500 }
       );
     }
 
     return NextResponse.json({
       success: true,
-      message: '您的消息已发送给客服团队，我们会尽快回复您！'
+      message: 'Your message has been sent to our support team, we will respond as soon as possible!'
     });
 
   } catch (error) {
     console.error('Support message error:', error);
     return NextResponse.json(
-      { error: '发送客服消息失败，请稍后重试' },
+      { error: 'Failed to send support message, please try again later' },
       { status: 500 }
     );
   }
